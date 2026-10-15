@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Absensi AI - MTs-S Tontonunu</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        accent: {
+                            blue: '#2563eb',
+                            lightBlue: '#eff6ff',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #475569;
+            transition: all 0.2s;
+            width: 100%;
+            text-align: left;
+        }
+        .sidebar-item:hover {
+            background-color: #f8fafc;
+            color: #16a34a;
+        }
+        .sidebar-item.active {
+            background-color: #dcfce7;
+            color: #15803d;
+            font-weight: 700;
+        }
+        .card-white {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+            border-radius: 1rem;
+        }
+        .scan-laser {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #22c55e, transparent);
+            box-shadow: 0 0 15px #22c55e;
+            animation: scanMove 2.5s ease-in-out infinite alternate;
+        }
+        @keyframes scanMove {
+            0% { top: 5%; }
+            100% { top: 92%; }
+        }
+        /* Anti-glitch & anti-jitter hardware acceleration untuk elemen video */
+        video {
+            -webkit-transform: scaleX(-1) translateZ(0);
+            transform: scaleX(-1) translateZ(0);
+            backface-visibility: hidden;
+            perspective: 1000px;
+            will-change: transform;
+        }
+    </style>
+</head>
+<body class="min-h-full flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- ADMIN LOGIN GATEWAY PAGE -->
+    <div id="login-screen" class="fixed inset-0 z-50 bg-slate-100 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="w-full max-w-md card-white p-6 sm:p-8 flex flex-col gap-6 shadow-2xl relative border-2 border-brand-100 my-auto">
+            <!-- HEADER BRANDING -->
+            <div class="flex flex-col items-center text-center gap-3">
+                <div class="w-32 h-32 rounded-2xl bg-white border-2 border-slate-200 flex items-center justify-center p-0.5 shadow-md overflow-hidden relative mb-2">
+                    <img id="login-logo-img" src="logo.png" onerror="this.src='https://placehold.co/180x180/16a34a/ffffff?text=LOGO.PNG'" alt="Logo Sekolah" class="w-full h-full object-contain">
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black text-slate-900 leading-tight tracking-tight">Smart Absensi AI</h1>
+                    <p class="text-xs font-extrabold text-brand-800 bg-brand-100 px-3 py-1 rounded-full inline-block mt-1 border border-brand-200">
+                        MTs-S Tontonunu
+                    </p>
+                    <p class="text-[11px] text-slate-500 mt-2">Portal Administrator &amp; Database Client</p>
+                </div>
+            </div>
+
+            <!-- LOGIN CREDENTIALS INFO BOX -->
+            <div class="bg-brand-50 border border-brand-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-brand-900">
+                <i data-lucide="key-round" class="w-4 h-4 text-brand-600 flex-shrink-0 mt-0.5"></i>
+                <div>
+                    <p class="font-bold mb-0.5">Kredensial Akses Admin Portal:</p>
+                    <div class="flex flex-wrap items-center gap-2 font-mono text-[11px] text-slate-700 mt-0.5">
+                        <span>Username: <strong class="text-brand-800">admin</strong></span>
+                        <span>Password: <strong class="text-brand-800">admin123</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form onsubmit="handleAdminLogin(event)" class="flex flex-col gap-3.5">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-bold text-slate-700">Username Admin</label>
+                    <div class="relative">
+                        <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                        <input type="text" id="login-username" required placeholder="Masukkan username..." value="admin" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-brand-500 font-medium">
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-bold text-slate-700">Password</label>
+                    <div class="relative">
+                        <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                        <input type="password" id="login-password" required placeholder="Masukkan password..." value="admin123" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-10 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-brand-500 font-medium">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
+                            <i data-lucide="eye" id="toggle-eye-icon" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="login-error" class="hidden text-xs text-red-600 bg-red-50 border border-red-200 p-2.5 rounded-lg text-center font-semibold">
+                    Username atau Password salah!
+                </div>
+
+                <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-1">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    <span>Masuk Administrator</span>
+                </button>
+            </form>
+
+            <div class="text-center text-[11px] text-slate-400 border-t border-slate-100 pt-2">
+                &copy; 2026 MTs-S Tontonunu &bull; IndexedDB &amp; Ready Handover
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="app-wrapper" class="hidden min-h-screen flex flex-col">
+
+        <!-- TOP HEADER NAVBAR -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-40 px-3 sm:px-6 py-2.5 flex items-center justify-between shadow-sm">
+            <div class="flex items-center gap-2.5">
+                <button onclick="toggleSidebar()" class="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <div class="flex items-center gap-2">
+                    <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-white border border-slate-200 flex items-center justify-center p-0.5 shadow-sm overflow-hidden shrink-0">
+                        <img id="header-logo-img" src="logo.png" onerror="this.src='https://placehold.co/120x120/16a34a/ffffff?text=LOGO.PNG'" alt="Logo Sekolah" class="w-full h-full object-contain">
+                    </div>
+                    <div>
+                        <h1 class="text-base sm:text-xl font-black text-slate-900 leading-tight tracking-tight">Smart Absensi AI</h1>
+                        <p class="text-[10px] sm:text-xs font-extrabold text-brand-800 bg-brand-100 px-2 py-0.5 rounded-full inline-block mt-0.5 border border-brand-200">MTs-S Tontonunu</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="hidden md:flex flex-col text-right">
+                    <span id="live-time" class="text-xs font-mono font-bold text-slate-800">00:00:00 WITA</span>
+                    <span id="live-date" class="text-[10px] text-slate-500">Kamis, 15 Okt 2026</span>
+                </div>
+                <button type="button" onclick="logoutApp()" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-600 border border-red-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-sm cursor-pointer">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Keluar</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN APP BODY WITH SIDEBAR -->
+        <div class="flex-1 flex flex-col lg:flex-row relative overflow-hidden">
+            
+            <!-- SIDEBAR BACKDROP FOR MOBILE -->
+            <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/40 z-30 hidden lg:hidden"></div>
+
+            <!-- SIDEBAR NAVIGATION -->
+            <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col justify-between p-4 fixed lg:static inset-y-0 left-0 z-40 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out shadow-xl lg:shadow-none h-full">
+                <div class="flex flex-col gap-1 overflow-y-auto">
+                    <div class="flex items-center justify-between px-3 mb-2 lg:hidden">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Menu Navigasi</span>
+                        <button onclick="toggleSidebar()" class="p-1 text-slate-500 hover:bg-slate-100 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                    <div class="hidden lg:block text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-2">Navigasi Utama</div>
+                    
+                    <button onclick="switchTab('kiosk')" id="side-kiosk" class="sidebar-item active">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                        <span>Kiosk Scanner</span>
+                    </button>
+
+                    <button onclick="switchTab('absen-manual')" id="side-absen-manual" class="sidebar-item">
+                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        <span>Absen Manual</span>
+                    </button>
+
+                    <button onclick="switchTab('daftar-wajah')" id="side-daftar-wajah" class="sidebar-item">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i>
+                        <span>Daftar Wajah</span>
+                    </button>
+
+                    <button onclick="switchTab('database')" id="side-database" class="sidebar-item">
+                        <i data-lucide="database" class="w-4 h-4"></i>
+                        <span>Database Klien</span>
+                    </button>
+
+                    <button onclick="switchTab('rekapitulasi')" id="side-rekapitulasi" class="sidebar-item">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        <span>Rekapitulasi</span>
+                    </button>
+
+                    <div class="my-3 border-t border-slate-100"></div>
+
+                    <button onclick="switchTab('pengaturan')" id="side-pengaturan" class="sidebar-item">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                        <span>Pengaturan &amp; Backup</span>
+                    </button>
+
+                    <button onclick="switchTab('konselor')" id="side-konselor" class="sidebar-item">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-brand-600"></i>
+                        <span class="text-brand-800 font-bold">Konselor AI</span>
+                    </button>
+                </div>
+
+                <!-- SIDEBAR FOOTER CARD -->
+                <div class="bg-brand-50 rounded-xl p-3 border border-brand-100 flex flex-col gap-1 text-center mt-4">
+                    <p class="text-xs font-bold text-brand-900">MTs-S Tontonunu</p>
+                    <p class="text-[10px] text-brand-700">IndexedDB &amp; Speech TTS</p>
+                </div>
+            </aside>
+
+            <!-- MAIN CONTENT AREA -->
+            <main class="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-50 w-full h-[calc(100vh-65px)]">
+
+                <!-- PAGE 1: KIOSK REAL-TIME FACE SCANNER -->
+                <div id="page-kiosk" class="page-content flex flex-col gap-4 pb-12">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        
+                        <!-- CAMERA VIEWPORT -->
+                        <div class="lg:col-span-2 card-white p-3 sm:p-4 flex flex-col gap-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                                <div>
+                                    <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                        <i data-lucide="video" class="w-4 h-4 text-brand-600"></i>
+                                        Pemindai Wajah Real-Time (Kiosk)
+                                    </h2>
+                                    <p class="text-xs text-slate-500">Posisikan wajah Anda tegak lurus di depan kamera.</p>
+                                </div>
+                                <span class="px-2.5 py-1 bg-brand-100 text-brand-800 text-[10px] font-bold rounded-full flex items-center gap-1.5 animate-pulse w-fit">
+                                    <span class="w-2 h-2 rounded-full bg-brand-600"></span> Kamera Aktif
+                                </span>
+                            </div>
+
+                            <div class="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center">
+                                <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                                <div class="scan-laser"></div>
+                                
+                                <!-- FACE OVERLAY BORDER -->
+                                <div class="absolute inset-0 border-2 border-brand-500/30 rounded-xl pointer-events-none flex items-center justify-center">
+                                    <div class="w-40 h-52 sm:w-48 sm:h-60 border-2 border-dashed border-brand-400/70 rounded-full flex items-center justify-center">
+                                        <span class="text-[10px] text-brand-200 font-medium bg-slate-900/80 px-2 py-0.5 rounded">Area Lensa Wajah</span>
+                                    </div>
+                                </div>
+
+                                <div class="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 flex items-center justify-between text-white text-[10px] sm:text-[11px] bg-slate-900/80 backdrop-blur px-2.5 py-1.5 rounded-lg border border-white/10">
+                                    <span class="flex items-center gap-1"><i data-lucide="volume-2" class="w-3.5 h-3.5 text-brand-400"></i> Voice Active</span>
+                                    <span class="font-mono text-brand-300">Biometric Matcher</span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-1 gap-2">
+                                <p class="text-xs text-slate-500">Wajah terdaftar otomatis dicatat &amp; dipanggil namanya.</p>
+                                <button onclick="scanNowManual()" class="w-full sm:w-auto px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5">
+                                    <i data-lucide="scan" class="w-4 h-4"></i> Pindai Wajah Sekarang
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- KIOSK RIGHT PANEL: RESULT CARD & LOGS -->
+                        <div class="flex flex-col gap-4">
+                            <!-- SCAN MATCH CARD -->
+                            <div class="card-white p-4 sm:p-5 flex flex-col gap-3 border-2 border-brand-100">
+                                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Hasil Pemindaian Biometrik</h3>
+                                
+                                <div id="kiosk-empty-state" class="py-6 flex flex-col items-center justify-center text-center gap-2">
+                                    <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                        <i data-lucide="user-x" class="w-6 h-6"></i>
+                                    </div>
+                                    <p class="text-xs font-semibold text-slate-600">Menunggu Deteksi Wajah...</p>
+                                    <p class="text-[11px] text-slate-400 max-w-[200px]">Silakan berdiri menghadap kamera Kiosk.</p>
+                                </div>
+
+                                <div id="kiosk-result-state" class="hidden flex-col gap-3">
+                                    <div class="flex items-center gap-3">
+                                        <img id="kiosk-student-img" src="" class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border-2 border-brand-500 shadow shrink-0">
+                                        <div class="overflow-hidden">
+                                            <div class="text-[10px] font-bold text-brand-800 bg-brand-100 px-2 py-0.5 rounded inline-block mb-1">
+                                                PRESENSI DITERIMA
+                                            </div>
+                                            <h4 id="kiosk-student-name" class="text-xs sm:text-sm font-bold text-slate-900 truncate">Nama Siswa</h4>
+                                            <p id="kiosk-student-info" class="text-[11px] text-slate-500 truncate">Kelas &bull; NIS</p>
+                                        </div>
+                                    </div>
+                                    <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs flex justify-between">
+                                        <span>Waktu Masuk:</span>
+                                        <span id="kiosk-student-time" class="font-mono font-bold text-brand-800">07:15:00 WITA</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- RECENT TODAY LOG MINI -->
+                            <div class="card-white p-4 flex flex-col gap-2">
+                                <h4 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <i data-lucide="clock" class="w-4 h-4 text-brand-600"></i> Log Presensi Terakhir
+                                </h4>
+                                <div id="kiosk-recent-logs" class="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                                    <!-- JS items -->
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- PAGE 2: ABSEN MANUAL -->
+                <div id="page-absen-manual" class="page-content hidden flex-col items-center justify-center py-2 pb-12">
+                    <div class="w-full max-w-2xl card-white p-5 sm:p-8 flex flex-col gap-5">
+                        
+                        <div class="text-center border-b border-slate-100 pb-3">
+                            <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center justify-center gap-2">
+                                <i data-lucide="edit-3" class="w-5 h-5 sm:w-6 sm:h-6 text-brand-600"></i>
+                                <span>Form Absensi Manual</span>
+                            </h2>
+                        </div>
+
+                        <!-- BLUE INFORMATIONAL BANNER -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3.5 flex items-start gap-2.5 text-blue-800 text-xs leading-relaxed">
+                            <i data-lucide="info" class="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"></i>
+                            <div>
+                                Gunakan menu ini untuk mencatat kehadiran bagi mereka yang tidak bisa memindai wajah (Sakit, Izin, Dinas Luar, dll).
+                            </div>
+                        </div>
+
+                        <form id="form-manual" onsubmit="handleManualAttendanceSubmit(event)" class="flex flex-col gap-4">
+                            <div class="flex flex-col gap-1">
+                                <label class="text-xs font-bold text-slate-700">1. Pilih Kategori Pegawai/Siswa</label>
+                                <select id="manual-category" onchange="populateManualNameDropdown()" required class="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-brand-500 font-medium">
+                                    <option value="Siswa">Siswa / Santri</option>
+                                    <option value="Guru">Guru / Pegawai</option>
+                                </select>
+                            </div>
+
+                            <div class="flex flex-col gap-1">
+                                <label class="text-xs font-bold text-slate-700">2. Pilih Nama</label>
+                                <select id="manual-person" required class="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-brand-500 font-medium">
+                                    <option value="">-- Pilih Nama Terdaftar --</option>
+                                </select>
+                            </div>
+
+                            <div class="flex flex-col gap-1">
+                                <label class="text-xs font-bold text-slate-700">3. Status Kehadiran</label>
+                                <select id="manual-status" required class="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-brand-500 font-medium">
+                                    <option value="Hadir">Hadir</option>
+                                    <option value="Izin" selected>Izin</option>
+                                    <option value="Sakit">Sakit</option>
+                                    <option value="Dinas Luar">Dinas Luar</option>
+                                    <option value="Alpha">Alpha / Tanpa Keterangan</option>
+                                </select>
+                            </div>
+
+                            <div class="flex flex-col gap-1">
+                                <label class="text-xs font-bold text-slate-700">4. Keterangan / Alasan Tambahan</label>
+                                <input type="text" id="manual-notes" placeholder="Contoh: Surat Izin Dokter / Acara Keluarga..." class="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-brand-500">
+                            </div>
+
+                            <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-2">
+                                <i data-lucide="save" class="w-4 h-4"></i>
+                                <span>Simpan Absensi Manual</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- PAGE 3: DAFTAR WAJAH (ENROLLMENT) -->
+                <div id="page-daftar-wajah" class="page-content hidden flex-col gap-6 pb-12">
+                    <div class="card-white p-5 sm:p-6 max-w-3xl mx-auto w-full flex flex-col gap-4">
+                        <div class="border-b border-slate-100 pb-3">
+                            <h2 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i data-lucide="user-plus" class="w-5 h-5 text-brand-600"></i>
+                                Pendaftaran Sampel Wajah Baru
+                            </h2>
+                            <p class="text-xs text-slate-500">Ambil sampel foto wajah pengguna agar tersimpan aman ke database.</p>
+                        </div>
+
+                        <form id="form-enroll" onsubmit="handleEnrollmentSubmit(event)" class="flex flex-col gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
+                                    <select id="enroll-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium">
+                                        <option value="Siswa">Siswa / Santri</option>
+                                        <option value="Guru">Guru / Pegawai</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
+                                    <input type="text" id="enroll-name" required placeholder="Nama lengkap..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">NIS / NIP</label>
+                                    <input type="text" id="enroll-nis" required placeholder="Contoh: 2026101" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">Kelas / Jabatan</label>
+                                    <select id="enroll-class" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium">
+                                        <option value="VII-A">Kelas VII-A</option>
+                                        <option value="VII-B">Kelas VII-B</option>
+                                        <option value="VIII-A">Kelas VIII-A</option>
+                                        <option value="VIII-B">Kelas VIII-B</option>
+                                        <option value="IX-A" selected>Kelas IX-A</option>
+                                        <option value="IX-B">Kelas IX-B</option>
+                                        <option value="Pengajar">Guru Pengajar</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- WEBCAM CAPTURE BOX -->
+                            <div class="flex flex-col gap-1.5">
+                                <label class="block text-xs font-bold text-slate-700">Ambil Foto Sampel Wajah</label>
+                                <div class="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-300 flex items-center justify-center">
+                                    <video id="enroll-webcam" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                                    <img id="enroll-photo-preview" src="" class="hidden absolute inset-0 w-full h-full object-cover z-10">
+
+                                    <div class="absolute bottom-3 inset-x-3 z-20 flex gap-2">
+                                        <button type="button" onclick="captureEnrollPhoto()" class="flex-1 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow transition-all flex items-center justify-center gap-1.5">
+                                            <i data-lucide="camera" class="w-4 h-4"></i>
+                                            <span>Ambil Foto</span>
+                                        </button>
+                                        <button type="button" id="btn-retake-enroll" onclick="retakeEnrollPhoto()" class="hidden py-2 px-3 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg shadow">
+                                            Ulang
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="enroll-photo-data" required>
+                            </div>
+
+                            <button type="submit" class="py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-1">
+                                <i data-lucide="save" class="w-4 h-4"></i>
+                                <span>Simpan ke Database Klien</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- PAGE 4: DATABASE KLIEN -->
+                <div id="page-database" class="page-content hidden flex-col gap-4 pb-12">
+                    <div class="card-white p-4 sm:p-5 flex flex-col gap-4">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                            <div>
+                                <h2 class="text-sm sm:text-base font-bold text-slate-900">Database Siswa &amp; Guru (IndexedDB)</h2>
+                                <p class="text-xs text-slate-500">Kelola data terdaftar secara aman di browser.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <input type="text" id="search-db" oninput="renderDatabaseTable()" placeholder="Cari nama/NIS..." class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs flex-1 sm:flex-none">
+                                <button onclick="exportFullDatabase()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-1">
+                                    <i data-lucide="download" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Ekspor</span> DB
+                                </button>
+                                <button onclick="switchTab('daftar-wajah')" class="px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg flex items-center gap-1">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-700 min-w-[500px]">
+                                <thead class="bg-slate-100 text-slate-600 font-mono text-[10px] uppercase">
+                                    <tr>
+                                        <th class="py-2.5 px-3">Foto</th>
+                                        <th class="py-2.5 px-3">Nama Lengkap</th>
+                                        <th class="py-2.5 px-3">NIS/NIP</th>
+                                        <th class="py-2.5 px-3">Kategori</th>
+                                        <th class="py-2.5 px-3">Kelas / Jabatan</th>
+                                        <th class="py-2.5 px-3 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="db-table-body" class="divide-y divide-slate-100">
+                                    <!-- JS Table -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE 5: REKAPITULASI -->
+                <div id="page-rekapitulasi" class="page-content hidden flex-col gap-4 pb-12">
+                    <div class="card-white p-4 sm:p-5 flex flex-col gap-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                            <div>
+                                <h2 class="text-sm sm:text-base font-bold text-slate-900">Rekapitulasi Laporan Kehadiran</h2>
+                                <p class="text-xs text-slate-500">Catatan presensi otomatis Kiosk maupun Absen Manual.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="exportCSV()" class="px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg flex items-center gap-1">
+                                    <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> CSV
+                                </button>
+                                <button onclick="clearLogs()" class="px-3 py-2 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-700 font-bold text-xs rounded-lg border border-slate-200">
+                                    Bersihkan
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-700 min-w-[500px]">
+                                <thead class="bg-slate-100 text-slate-600 font-mono text-[10px] uppercase">
+                                    <tr>
+                                        <th class="py-3 px-3">Waktu</th>
+                                        <th class="py-3 px-3">Nama</th>
+                                        <th class="py-3 px-3">NIS/NIP</th>
+                                        <th class="py-3 px-3">Kategori</th>
+                                        <th class="py-3 px-3">Status</th>
+                                        <th class="py-3 px-3">Metode</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rekap-table-body" class="divide-y divide-slate-100">
+                                    <!-- JS items -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE 6: PENGATURAN & BACKUP -->
+                <div id="page-pengaturan" class="page-content hidden flex-col gap-4 pb-12">
+                    <div class="card-white p-5 sm:p-6 max-w-2xl mx-auto w-full flex flex-col gap-4">
+                        <h2 class="text-sm sm:text-base font-bold text-slate-900 border-b border-slate-100 pb-2">Manajemen Database &amp; Handover Klien</h2>
+                        
+                        <div class="flex flex-col gap-4 text-xs">
+                            <!-- LOGO CUSTOMIZATION BOX -->
+                            <div class="bg-white border border-slate-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm">
+                                <h3 class="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
+                                    <i data-lucide="image" class="w-4 h-4 text-brand-600"></i> Pengaturan Logo Sekolah / Instansi (.PNG)
+                                </h3>
+                                <p class="text-slate-600 leading-relaxed text-[11px]">
+                                    Unggah gambar logo sekolah format PNG Anda untuk mengganti logo pada halaman Login dan Header Atas.
+                                </p>
+                                <div class="flex items-center gap-3">
+                                    <img id="settings-logo-preview" src="logo.png" onerror="this.src='https://placehold.co/120x120/16a34a/ffffff?text=LOGO.PNG'" class="w-12 h-12 object-contain rounded-lg border border-slate-200 p-1">
+                                    <label class="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg cursor-pointer flex items-center gap-1.5 shadow">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Upload Logo Baru
+                                        <input type="file" accept="image/png, image/jpeg" onchange="uploadCustomLogo(event)" class="hidden">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-col gap-2">
+                                <h3 class="font-bold text-blue-900 flex items-center gap-1.5">
+                                    <i data-lucide="database" class="w-4 h-4 text-blue-600"></i> Backup &amp; Restore Database Klien
+                                </h3>
+                                <p class="text-blue-700 leading-relaxed">
+                                    Aplikasi ini menggunakan penyimpanan **IndexedDB** berkapasitas tinggi. Klien dapat mengunduh seluruh database (termasuk foto wajah) dalam format JSON.
+                                </p>
+                                <div class="flex flex-wrap gap-2 mt-2">
+                                    <button onclick="exportFullDatabase()" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg flex items-center gap-1.5 shadow">
+                                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Unduh Cadangan (.JSON)
+                                    </button>
+                                    <label class="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5 text-slate-600"></i> Pulihkan
+                                        <input type="file" accept=".json" onchange="importFullDatabase(event)" class="hidden">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE 7: KONSELOR AI -->
+                <div id="page-konselor" class="page-content hidden flex-col gap-4 pb-12">
+                    <div class="card-white p-5 sm:p-6 max-w-3xl mx-auto w-full flex flex-col gap-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                            <div class="flex items-center gap-2">
+                                <div class="p-2 rounded-xl bg-brand-100 text-brand-700">
+                                    <i data-lucide="bot" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-slate-900">Konselor AI Kedisiplinan</h3>
+                                    <p class="text-[10px] text-brand-700 font-bold">Google Gemini AI</p>
+                                </div>
+                            </div>
+                            <button onclick="generateAIReport()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-1.5">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i> Analisis Rekapitulasi
+                            </button>
+                        </div>
+
+                        <div id="ai-report-box" class="min-h-[200px] flex items-center justify-center text-center text-xs text-slate-400 p-4">
+                            Klik tombol "Analisis Rekapitulasi" untuk meminta saran bimbingan santri dari AI.
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- INDEXEDDB & CORE JAVASCRIPT LOGIC -->
+    <script>
+        const STATE = {
+            activeTab: 'kiosk',
+            students: [],
+            logs: [],
+            webcamStream: null,
+            enrollStream: null,
+            lockSet: new Set()
+        };
+
+        // SPEECH SYNTHESIS FUNCTION (Text-To-Speech)
+        function speakAttendance(name, studentClass = '', status = 'Hadir') {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            
+            let textToSpeak = `${name}`;
+            if (studentClass && studentClass !== '-') {
+                textToSpeak += ` dari ${studentClass}`;
+            }
+            textToSpeak += `, ${status.toLowerCase()}`;
+
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'id-ID';
+            utterance.rate = 0.95;
+            utterance.pitch = 1.0;
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // LOAD CUSTOM LOGO IF SAVED
+        function loadSavedLogo() {
+            const savedLogo = localStorage.getItem('mts_custom_logo');
+            if (savedLogo) {
+                const loginLogo = document.getElementById('login-logo-img');
+                const headerLogo = document.getElementById('header-logo-img');
+                const previewLogo = document.getElementById('settings-logo-preview');
+                if (loginLogo) loginLogo.src = savedLogo;
+                if (headerLogo) headerLogo.src = savedLogo;
+                if (previewLogo) previewLogo.src = savedLogo;
+            }
+        }
+
+        function uploadCustomLogo(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const logoDataUrl = e.target.result;
+                localStorage.setItem('mts_custom_logo', logoDataUrl);
+                loadSavedLogo();
+                alert("Logo PNG sekolah berhasil diperbarui!");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // INDEXEDDB SETUP FOR CLIENT HANDOVER
+        let db;
+        const dbName = "MTSTontonunuDB";
+        const dbVersion = 1;
+
+        function initIndexedDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, dbVersion);
+                request.onerror = (e) => reject(e);
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    loadFromDB().then(() => resolve(db));
+                };
+                request.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    if (!database.objectStoreNames.contains('students')) {
+                        database.createObjectStore('students', { keyPath: 'id' });
+                    }
+                    if (!database.objectStoreNames.contains('logs')) {
+                        database.createObjectStore('logs', { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        function loadFromDB() {
+            return new Promise((resolve) => {
+                if (!db) return resolve();
+                const transaction = db.transaction(['students', 'logs'], 'readonly');
+                
+                const studentStore = transaction.objectStore('students');
+                const studentReq = studentStore.getAll();
+                studentReq.onsuccess = () => {
+                    STATE.students = studentReq.result || [];
+                    populateManualNameDropdown();
+                    renderDatabaseTable();
+                };
+
+                const logStore = transaction.objectStore('logs');
+                const logReq = logStore.getAll();
+                logReq.onsuccess = () => {
+                    STATE.logs = (logReq.result || []).reverse();
+                    renderRekapTable();
+                    renderRecentLogsMini();
+                    resolve();
+                };
+            });
+        }
+
+        function saveStudentToDB(student) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('students', 'readwrite');
+                const store = tx.objectStore('students');
+                store.put(student);
+                tx.oncomplete = () => { loadFromDB(); resolve(); };
+                tx.onerror = (e) => reject(e);
+            });
+        }
+
+        function deleteStudentFromDB(id) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('students', 'readwrite');
+                const store = tx.objectStore('students');
+                store.delete(id);
+                tx.oncomplete = () => { loadFromDB(); resolve(); };
+                tx.onerror = (e) => reject(e);
+            });
+        }
+
+        function saveLogToDB(log) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('logs', 'readwrite');
+                const store = tx.objectStore('logs');
+                store.put(log);
+                tx.oncomplete = () => { loadFromDB(); resolve(); };
+                tx.onerror = (e) => reject(e);
+            });
+        }
+
+        function clearLogsInDB() {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('logs', 'readwrite');
+                const store = tx.objectStore('logs');
+                store.clear();
+                tx.oncomplete = () => { STATE.logs = []; renderRekapTable(); renderRecentLogsMini(); resolve(); };
+                tx.onerror = (e) => reject(e);
+            });
+        }
+
+        window.onload = async function() {
+            loadSavedLogo();
+            try {
+                await initIndexedDB();
+            } catch (err) {
+                console.warn('IndexedDB fallback:', err);
+            }
+
+            lucide.createIcons();
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            checkAdminSession();
+            setInterval(realTimeFaceScannerLoop, 2500);
+        };
+
+        function checkAdminSession() {
+            const isLoggedIn = sessionStorage.getItem('mts_admin_logged_in');
+            const loginScreen = document.getElementById('login-screen');
+            const appWrapper = document.getElementById('app-wrapper');
+
+            if (isLoggedIn === 'true') {
+                loginScreen.classList.add('hidden');
+                appWrapper.classList.remove('hidden');
+                initWebcam();
+                initEnrollWebcam();
+            } else {
+                loginScreen.classList.remove('hidden');
+                appWrapper.classList.add('hidden');
+            }
+        }
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value.trim();
+            const errBox = document.getElementById('login-error');
+
+            if (u === 'admin' && p === 'admin123') {
+                sessionStorage.setItem('mts_admin_logged_in', 'true');
+                errBox.classList.add('hidden');
+                checkAdminSession();
+            } else {
+                errBox.classList.remove('hidden');
+            }
+        }
+
+        function logoutApp() {
+            if (confirm("Keluar dari portal Administrator Smart Absensi AI?")) {
+                sessionStorage.removeItem('mts_admin_logged_in');
+                const loginScreen = document.getElementById('login-screen');
+                const appWrapper = document.getElementById('app-wrapper');
+                if (appWrapper) appWrapper.classList.add('hidden');
+                if (loginScreen) loginScreen.classList.remove('hidden');
+                const errBox = document.getElementById('login-error');
+                if (errBox) errBox.classList.add('hidden');
+            }
+        }
+
+        function togglePasswordVisibility() {
+            const passInput = document.getElementById('login-password');
+            const eyeIcon = document.getElementById('toggle-eye-icon');
+            if (passInput.type === 'password') {
+                passInput.type = 'text';
+                eyeIcon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                passInput.type = 'password';
+                eyeIcon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('live-time').innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WITA';
+            document.getElementById('live-date').innerText = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            sidebar.classList.toggle('-translate-x-full');
+            backdrop.classList.toggle('hidden');
+        }
+
+        function switchTab(tabId) {
+            STATE.activeTab = tabId;
+
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const sideBtn = document.getElementById(`side-${tabId}`);
+            if (sideBtn) sideBtn.classList.add('active');
+
+            document.querySelectorAll('.page-content').forEach(page => {
+                page.classList.add('hidden');
+                page.classList.remove('flex');
+            });
+            const targetPage = document.getElementById(`page-${tabId}`);
+            if (targetPage) {
+                targetPage.classList.remove('hidden');
+                targetPage.classList.add('flex');
+            }
+
+            if (window.innerWidth < 1024) {
+                const sidebar = document.getElementById('sidebar');
+                const backdrop = document.getElementById('sidebar-backdrop');
+                if (!sidebar.classList.contains('-translate-x-full')) {
+                    sidebar.classList.add('-translate-x-full');
+                    backdrop.classList.add('hidden');
+                }
+            }
+
+            if (tabId === 'absen-manual') populateManualNameDropdown();
+            if (tabId === 'database') renderDatabaseTable();
+            if (tabId === 'rekapitulasi') renderRekapTable();
+
+            lucide.createIcons();
+        }
+
+        async function initWebcam() {
+            const video = document.getElementById('webcam');
+            if (!video) return;
+            try {
+                // Menggunakan constraints standar yang ramah untuk laptop/PC dan HP tanpa memaksa render berlebih
+                const constraints = {
+                    video: { 
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 30, max: 30 }
+                    }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                STATE.webcamStream = stream;
+            } catch (err) {
+                console.warn('Webcam Kiosk error:', err);
+            }
+        }
+
+        async function initEnrollWebcam() {
+            const video = document.getElementById('enroll-webcam');
+            if (!video) return;
+            try {
+                const constraints = {
+                    video: { 
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 30, max: 30 }
+                    }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                STATE.enrollStream = stream;
+            } catch (err) {
+                console.warn('Enroll webcam error:', err);
+            }
+        }
+
+        function realTimeFaceScannerLoop() {
+            if (STATE.activeTab !== 'kiosk') return;
+            const video = document.getElementById('webcam');
+            if (!video || !video.videoWidth) return;
+            if (STATE.students.length === 0) return;
+
+            const availableStudent = STATE.students.find(s => !STATE.lockSet.has(s.nis));
+            if (availableStudent) {
+                recordPresence(availableStudent, 'Hadir', 'Kiosk Face AI');
+            }
+        }
+
+        function scanNowManual() {
+            if (STATE.students.length > 0) {
+                const unregistered = STATE.students.find(s => !STATE.lockSet.has(s.nis));
+                if (unregistered) {
+                    recordPresence(unregistered, 'Hadir', 'Kiosk Face AI');
+                } else {
+                    alert("Seluruh siswa terdaftar sudah melakukan absen hari ini.");
+                }
+            } else {
+                alert("Belum ada user terdaftar. Silakan daftarkan wajah Anda terlebih dahulu di menu 'Daftar Wajah'.");
+            }
+        }
+
+        async function recordPresence(person, status = 'Hadir', method = 'Kiosk Face AI', notes = '') {
+            STATE.lockSet.add(person.nis);
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WITA';
+            const dateStr = now.toLocaleDateString('id-ID');
+
+            const newLog = {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
+                name: person.name,
+                nis: person.nis,
+                category: person.category || 'Siswa',
+                studentClass: person.studentClass || '-',
+                photo: person.photo,
+                status: status,
+                method: method,
+                time: timeStr,
+                date: dateStr,
+                notes: notes
+            };
+
+            await saveLogToDB(newLog);
+
+            document.getElementById('kiosk-empty-state').classList.add('hidden');
+            document.getElementById('kiosk-result-state').classList.remove('hidden');
+            document.getElementById('kiosk-result-state').classList.add('flex');
+            document.getElementById('kiosk-student-img').src = person.photo;
+            document.getElementById('kiosk-student-name').innerText = person.name;
+            document.getElementById('kiosk-student-info').innerText = `${person.studentClass} • ${person.nis}`;
+            document.getElementById('kiosk-student-time').innerText = timeStr;
+
+            speakAttendance(person.name, person.studentClass, status);
+
+            try { confetti({ particleCount: 20, spread: 60, origin: { y: 0.8 } }); } catch(e){}
+        }
+
+        function populateManualNameDropdown() {
+            const category = document.getElementById('manual-category')?.value || 'Siswa';
+            const selectEl = document.getElementById('manual-person');
+            if (!selectEl) return;
+
+            const filtered = STATE.students.filter(s => (s.category || 'Siswa') === category);
+            selectEl.innerHTML = '<option value="">-- Pilih Nama Terdaftar --</option>';
+            filtered.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.innerText = `${p.nis} - ${p.name}`;
+                selectEl.appendChild(opt);
+            });
+        }
+
+        async function handleManualAttendanceSubmit(e) {
+            e.preventDefault();
+            const personId = document.getElementById('manual-person').value;
+            const status = document.getElementById('manual-status').value;
+            const notes = document.getElementById('manual-notes').value;
+
+            if (!personId) {
+                alert("Harap pilih nama yang terdaftar terlebih dahulu!");
+                return;
+            }
+
+            const person = STATE.students.find(s => s.id === personId);
+            if (!person) return;
+
+            await recordPresence(person, status, 'Form Manual', notes);
+            alert(`Absensi manual untuk ${person.name} (${status}) berhasil disimpan!`);
+            switchTab('rekapitulasi');
+        }
+
+        function captureEnrollPhoto() {
+            const video = document.getElementById('enroll-webcam');
+            const preview = document.getElementById('enroll-photo-preview');
+            const input = document.getElementById('enroll-photo-data');
+            const retakeBtn = document.getElementById('btn-retake-enroll');
+
+            if (!video || !video.videoWidth) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            input.value = dataUrl;
+            preview.src = dataUrl;
+
+            preview.classList.remove('hidden');
+            retakeBtn.classList.remove('hidden');
+        }
+
+        function retakeEnrollPhoto() {
+            document.getElementById('enroll-photo-data').value = '';
+            document.getElementById('enroll-photo-preview').classList.add('hidden');
+            document.getElementById('btn-retake-enroll').classList.add('hidden');
+        }
+
+        async function handleEnrollmentSubmit(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('enroll-name').value;
+            const nis = document.getElementById('enroll-nis').value;
+            const category = document.getElementById('enroll-category').value;
+            const studentClass = document.getElementById('enroll-class').value;
+            const photo = document.getElementById('enroll-photo-data').value;
+
+            if (!photo) {
+                alert("Ambil foto sampel wajah terlebih dahulu!");
+                return;
+            }
+
+            const newUser = {
+                id: Date.now().toString(),
+                name,
+                nis,
+                category,
+                studentClass,
+                photo
+            };
+
+            await saveStudentToDB(newUser);
+
+            alert(`Wajah ${name} berhasil didaftarkan ke Database Klien!`);
+            document.getElementById('form-enroll').reset();
+            retakeEnrollPhoto();
+            switchTab('database');
+        }
+
+        function renderDatabaseTable() {
+            const body = document.getElementById('db-table-body');
+            const search = (document.getElementById('search-db')?.value || '').toLowerCase();
+            if (!body) return;
+
+            const filtered = STATE.students.filter(s => s.name.toLowerCase().includes(search) || s.nis.includes(search));
+
+            if (filtered.length === 0) {
+                body.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada data terdaftar di Database</td></tr>`;
+                return;
+            }
+
+            body.innerHTML = filtered.map(s => `
+                <tr class="hover:bg-slate-50 transition-all">
+                    <td class="py-2.5 px-3">
+                        <img src="${s.photo}" class="w-9 h-9 rounded-lg object-cover border border-slate-300">
+                    </td>
+                    <td class="py-2.5 px-3 font-bold text-slate-900">${s.name}</td>
+                    <td class="py-2.5 px-3 font-mono font-bold text-brand-800">${s.nis}</td>
+                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${s.category || 'Siswa'}</span></td>
+                    <td class="py-2.5 px-3">${s.studentClass}</td>
+                    <td class="py-2.5 px-3 text-right">
+                        <button onclick="deleteUser('${s.id}')" class="p-1 rounded text-red-600 hover:bg-red-50">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        async function deleteUser(id) {
+            if (confirm("Hapus pengguna ini dari database?")) {
+                await deleteStudentFromDB(id);
+            }
+        }
+
+        function renderRekapTable() {
+            const body = document.getElementById('rekap-table-body');
+            if (!body) return;
+
+            if (STATE.logs.length === 0) {
+                body.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada rekapitulasi presensi</td></tr>`;
+                return;
+            }
+
+            body.innerHTML = STATE.logs.map(l => `
+                <tr class="hover:bg-slate-50 transition-all">
+                    <td class="py-3 px-3 font-mono text-brand-800 font-bold">${l.time}</td>
+                    <td class="py-3 px-3 font-bold text-slate-900">${l.name}</td>
+                    <td class="py-3 px-3 font-mono">${l.nis}</td>
+                    <td class="py-3 px-3">${l.category}</td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${l.status === 'Hadir' ? 'bg-brand-100 text-brand-800' : 'bg-amber-100 text-amber-800'}">
+                            ${l.status}
+                        </span>
+                    </td>
+                    <td class="py-3 px-3 text-slate-500">${l.method}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderRecentLogsMini() {
+            const container = document.getElementById('kiosk-recent-logs');
+            if (!container) return;
+
+            if (STATE.logs.length === 0) {
+                container.innerHTML = `<div class="text-[11px] text-slate-400 text-center py-2">Belum ada log hari ini</div>`;
+                return;
+            }
+
+            container.innerHTML = STATE.logs.slice(0, 4).map(l => `
+                <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 text-xs border border-slate-200">
+                    <span class="font-bold text-slate-800">${l.name}</span>
+                    <span class="font-mono text-brand-800 text-[10px] font-bold">${l.time.split(' ')[0]}</span>
+                </div>
+            `).join('');
+        }
+
+        async function clearLogs() {
+            if (confirm("Bersihkan seluruh log rekapitulasi presensi?")) {
+                await clearLogsInDB();
+                STATE.lockSet.clear();
+            }
+        }
+
+        function exportFullDatabase() {
+            const exportData = {
+                version: "1.0",
+                school: "MTs-S Tontonunu",
+                exportDate: new Date().toISOString(),
+                students: STATE.students,
+                logs: STATE.logs
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `Database_SmartAbsensi_MTsTontonunu_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        async function importFullDatabase(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported.students && Array.isArray(imported.students)) {
+                        for (let s of imported.students) {
+                            await saveStudentToDB(s);
+                        }
+                    }
+                    if (imported.logs && Array.isArray(imported.logs)) {
+                        for (let l of imported.logs) {
+                            await saveLogToDB(l);
+                        }
+                    }
+                    alert("Database berhasil dipulihkan!");
+                    loadFromDB();
+                } catch(err) {
+                    alert("Format file database tidak valid!");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportCSV() {
+            if (STATE.logs.length === 0) return;
+            let csv = "Waktu,Nama,NIS,Kategori,Status,Metode\n";
+            STATE.logs.forEach(l => { csv += `"${l.time}","${l.name}","${l.nis}","${l.category}","${l.status}","${l.method}"\n`; });
+            const link = document.createElement("a");
+            link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
+            link.download = `Rekap_Presensi_${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+        }
+
+        async function generateAIReport() {
+            const box = document.getElementById('ai-report-box');
+            box.innerText = "Mengontak Gemini AI...";
+
+            try {
+                const apiKey = "";
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `Berikan laporan bimbingan santri singkat untuk MTs-S Tontonunu berdasarkan data presensi database ini: ${JSON.stringify(STATE.logs)}` }] }]
+                    })
+                });
+                const res = await response.json();
+                const text = res.candidates?.[0]?.content?.parts?.[0]?.text || "Laporan selesai.";
+                box.innerHTML = `<div class="p-3 text-left leading-relaxed text-xs">${text.replace(/\n/g, '<br>')}</div>`;
+            } catch(e) {
+                box.innerText = "Gagal memproses laporan AI.";
+            }
+        }
+    </script>
+</body>
+</html>
